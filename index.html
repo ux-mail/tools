@@ -38,7 +38,6 @@
         
         .otp-box { display: flex; align-items: center; justify-content: space-between; background: rgba(37, 99, 235, 0.05); padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
         .otp-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        .otp-left:active { opacity: 0.6; }
         .otp-num { font-family: monospace; font-size: 28px; font-weight: 700; color: var(--primary); letter-spacing: 2px; }
         
         .timer-container { position: relative; width: 24px; height: 24px; }
@@ -104,19 +103,19 @@
         const nameInput = document.getElementById('accName');
         const keyInput = document.getElementById('accKey');
         const backupInput = document.getElementById('accBackup');
-        
         const name = nameInput.value.trim();
         const keyRaw = keyInput.value.replace(/\s/g, '').toUpperCase();
         
+        // Cek Duplikat Manual Input
+        if (accounts.some(acc => acc.name.toLowerCase() === name.toLowerCase())) {
+            alert("⚠️ Email '" + name + "' sudah ada di daftar.");
+            return;
+        }
+
         if (name && keyRaw) {
             accounts.push({ name, key: keyRaw, backup: backupInput.value });
             localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-            
-            // Auto Clear Form
-            nameInput.value = '';
-            keyInput.value = '';
-            backupInput.value = '';
-            
+            nameInput.value = ''; keyInput.value = ''; backupInput.value = '';
             render();
         }
     }
@@ -137,7 +136,8 @@
         const now = new Date();
         const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
         let textToCopy = `Date: ${dateStr}\n\n`;
-        document.querySelectorAll('.acc-item').forEach(item => {
+        const items = [...document.querySelectorAll('.acc-item')];
+        items.forEach((item, i) => {
             if (item.querySelector('.acc-check').checked) {
                 textToCopy += `${item.querySelector('.acc-name').innerText}\n${item.querySelector('.secret-val').innerText}\n\n`;
             }
@@ -161,11 +161,23 @@
         reader.onload = (e) => {
             try {
                 const data = JSON.parse(e.target.result);
-                if(confirm(`Import ${data.length} accounts?`)) {
-                    accounts = [...accounts, ...data];
-                    localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-                    location.reload();
-                }
+                let addedCount = 0;
+                let skipCount = 0;
+
+                data.forEach(newAcc => {
+                    // CEK DUPLIKAT SAAT IMPORT
+                    const exists = accounts.some(acc => acc.name.toLowerCase() === newAcc.name.toLowerCase());
+                    if (!exists) {
+                        accounts.push(newAcc);
+                        addedCount++;
+                    } else {
+                        skipCount++;
+                    }
+                });
+
+                localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
+                alert(`Import Berhasil!\n✅ ${addedCount} Akun Baru Ditambahkan\n⚠️ ${skipCount} Akun Dilewati (Karena Email Sama)`);
+                location.reload();
             } catch(err) { alert("Format error"); }
         };
         reader.readAsText(event.target.files[0]);
@@ -177,10 +189,8 @@
         const div = document.getElementById('displayList');
         const search = document.getElementById('searchInput').value.toLowerCase();
         const filtered = [...accounts].reverse().filter(a => a.name.toLowerCase().includes(search));
-        
         document.getElementById('accCounter').innerText = `${accounts.length} Accounts`;
         document.getElementById('selectionBar').style.display = filtered.length > 0 ? 'flex' : 'none';
-        
         div.innerHTML = '';
         filtered.forEach((acc) => {
             const idx = accounts.findIndex(a => a === acc);
@@ -247,8 +257,6 @@
     function copyOTP(idx, btn) {
         const text = document.getElementById('otp-' + idx).innerText;
         navigator.clipboard.writeText(text);
-        
-        // Show feedback on main button
         const targetBtn = btn || document.getElementById('btn-otp-' + idx);
         const oldText = targetBtn.innerText;
         targetBtn.innerText = 'DONE';

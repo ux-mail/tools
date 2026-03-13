@@ -46,7 +46,10 @@
         .timer-circle-prog { fill: none; stroke: var(--primary); stroke-width: 3; stroke-dasharray: 70; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
         .timer-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; font-weight: bold; color: var(--gray); }
 
-        .btn-copy-main { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+        .btn-copy-main { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; transition: background 0.2s; }
+        /* Style baru saat tombol berhasil dicopy */
+        .btn-copy-main.copied { background: var(--success); }
+
         .btn-action-small { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
         .item-footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--gray); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
         input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
@@ -106,7 +109,6 @@
         const name = nameInput.value.trim();
         const keyRaw = keyInput.value.replace(/\s/g, '').toUpperCase();
         
-        // Cek Duplikat Manual Input
         if (accounts.some(acc => acc.name.toLowerCase() === name.toLowerCase())) {
             alert("⚠️ Email '" + name + "' sudah ada di daftar.");
             return;
@@ -163,20 +165,15 @@
                 const data = JSON.parse(e.target.result);
                 let addedCount = 0;
                 let skipCount = 0;
-
                 data.forEach(newAcc => {
-                    // CEK DUPLIKAT SAAT IMPORT
                     const exists = accounts.some(acc => acc.name.toLowerCase() === newAcc.name.toLowerCase());
                     if (!exists) {
                         accounts.push(newAcc);
                         addedCount++;
-                    } else {
-                        skipCount++;
-                    }
+                    } else { skipCount++; }
                 });
-
                 localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-                alert(`Import Berhasil!\n✅ ${addedCount} Akun Baru Ditambahkan\n⚠️ ${skipCount} Akun Dilewati (Karena Email Sama)`);
+                alert(`Import Berhasil!\n✅ ${addedCount} Akun Baru Ditambahkan\n⚠️ ${skipCount} Akun Dilewati`);
                 location.reload();
             } catch(err) { alert("Format error"); }
         };
@@ -251,7 +248,8 @@
     function copyText(txt, btn, label) {
         navigator.clipboard.writeText(txt);
         btn.innerText = 'OK';
-        setTimeout(() => btn.innerText = label, 800);
+        btn.style.color = 'var(--success)';
+        setTimeout(() => { btn.innerText = label; btn.style.color = 'var(--text)'; }, 800);
     }
 
     function copyOTP(idx, btn) {
@@ -259,8 +257,14 @@
         navigator.clipboard.writeText(text);
         const targetBtn = btn || document.getElementById('btn-otp-' + idx);
         const oldText = targetBtn.innerText;
+        
         targetBtn.innerText = 'DONE';
-        setTimeout(() => { targetBtn.innerText = oldText; }, 800);
+        targetBtn.classList.add('copied'); // Tambah warna hijau
+        
+        setTimeout(() => { 
+            targetBtn.innerText = oldText; 
+            targetBtn.classList.remove('copied'); // Balik ke warna biru
+        }, 800);
     }
 
     function toggleEdit(i) {
@@ -269,9 +273,7 @@
     }
 
     function saveBackup(i, v) { accounts[i].backup = v; localStorage.setItem('ux_mail_v8', JSON.stringify(accounts)); }
-
     function deleteSingle(i) { if(confirm("Hapus?")) { accounts.splice(i,1); localStorage.setItem('ux_mail_v8', JSON.stringify(accounts)); render(); }}
-    
     function deleteSelected() {
         const checks = document.querySelectorAll('.acc-check');
         const items = [...document.querySelectorAll('.acc-item')];
@@ -280,7 +282,6 @@
         localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
         location.reload();
     }
-
     render();
     setInterval(updateCodes, 1000);
     updateCodes();

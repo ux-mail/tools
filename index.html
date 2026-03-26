@@ -3,288 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2FA Authenticator Pro</title>
+    <title>Massive 2FA v52.0</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
     <style>
-        :root { 
-            --primary: #2563eb; --bg: #000000; --card: #121212; --border: #333; 
-            --text: #ffffff; --gray: #888; --danger: #ef4444; --success: #22c55e;
+        :root { --primary: #06b6d4; --bg: #0a0a0a; --card: #161616; --border: #262626; --text: #e5e5e5; --gray: #737373; --success: #10b981; --danger: #ef4444; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 0; margin: 0; display: flex; justify-content: center; }
+        .wrapper { width: 100%; max-width: 800px; padding: 15px; box-sizing: border-box; }
+        
+        .glass-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 20px; }
+        textarea { width: 100%; height: 140px; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: #000; color: #22c55e; font-family: monospace; outline: none; box-sizing: border-box; }
+        .btn-main { width: 100%; padding: 15px; background: var(--primary); color: #000; border: none; border-radius: 10px; font-weight: 800; cursor: pointer; margin-top: 15px; text-transform: uppercase; }
+
+        .sticky-nav { position: sticky; top: 0; background: rgba(10,10,10,0.9); backdrop-filter: blur(10px); padding: 10px 0; z-index: 100; border-bottom: 1px solid var(--border); display: none; }
+        .search-bar { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: #fff; outline: none; box-sizing: border-box; }
+
+        /* MODIFIED LIST ROW */
+        .acc-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; display: grid; grid-template-columns: 25px 1fr auto; gap: 10px; align-items: center; transition: 0.2s; }
+        .acc-row.checked { opacity: 0.3; background: #000; border-style: dashed; }
+        
+        .acc-no { font-size: 10px; color: var(--gray); text-align: center; font-weight: bold; }
+        .acc-info { display: flex; flex-direction: column; overflow: hidden; }
+        .acc-mail { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #fff; font-weight: 500; user-select: none; }
+        .acc-key-text { font-size: 10px; color: var(--gray); font-family: monospace; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; user-select: none; }
+        
+        .action-group { display: flex; align-items: center; gap: 5px; }
+        .otp-display { font-family: monospace; font-size: 18px; font-weight: 800; color: var(--primary); min-width: 65px; text-align: center; }
+        
+        .btn-small { padding: 8px 6px; border-radius: 6px; border: 1px solid #333; background: #262626; color: #fff; font-size: 9px; font-weight: 800; cursor: pointer; text-transform: uppercase; min-width: 42px; }
+        .btn-otp { background: var(--primary); color: #000; border: none; }
+        .btn-check.is-done { background: var(--success); color: #000; border-color: var(--success); }
+
+        @media (max-width: 500px) {
+            .acc-mail { font-size: 12px; }
+            .otp-display { font-size: 16px; min-width: 60px; }
+            .btn-small { padding: 7px 4px; font-size: 8px; min-width: 38px; }
         }
-        body.light-mode {
-            --bg: #f8fafc; --card: #ffffff; --border: #e2e8f0; 
-            --text: #1e293b; --gray: #64748b;
-        }
-        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 20px; margin: 0; transition: 0.3s; }
-        .wrapper { width: 100%; max-width: 480px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
-        .theme-toggle { cursor: pointer; padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 11px; font-weight: bold; }
-
-        .top-action-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px; }
-        .top-btns { display: flex; gap: 8px; }
-        .btn-top { background: var(--card); border: 1px solid var(--border); color: var(--text); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-        .btn-copy-sel { background: var(--primary); color: white; border: none; display: none; }
-        
-        input, textarea { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card); color: var(--text); font-size: 14px; box-sizing: border-box; }
-        .card-form { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; }
-        .btn-save { width: 100%; padding: 14px; background: var(--text); color: var(--bg); border: none; border-radius: 8px; cursor: pointer; font-weight: 700; text-transform: uppercase; }
-        
-        .selection-bar { display: none; justify-content: space-between; align-items: center; margin-bottom: 15px; font-size: 13px; background: var(--card); padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
-        .counter-badge { font-size: 11px; color: var(--gray); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 10px; }
-
-        .acc-item { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; display: flex; gap: 12px; position: relative; }
-        .content-area { flex-grow: 1; overflow: hidden; }
-        .acc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 10px; }
-        .acc-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        
-        .otp-box { display: flex; align-items: center; justify-content: space-between; background: rgba(37, 99, 235, 0.05); padding: 12px 16px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border); }
-        .otp-left { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-        .otp-num { font-family: monospace; font-size: 28px; font-weight: 700; color: var(--primary); letter-spacing: 2px; }
-        
-        .timer-container { position: relative; width: 24px; height: 24px; }
-        .timer-svg { transform: rotate(-90deg); width: 24px; height: 24px; }
-        .timer-circle-bg { fill: none; stroke: var(--border); stroke-width: 3; }
-        .timer-circle-prog { fill: none; stroke: var(--primary); stroke-width: 3; stroke-dasharray: 70; stroke-dashoffset: 0; transition: stroke-dashoffset 1s linear; }
-        .timer-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; font-weight: bold; color: var(--gray); }
-
-        .btn-copy-main { background: var(--primary); color: white; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; text-transform: uppercase; transition: background 0.2s; }
-        /* Style baru saat tombol berhasil dicopy */
-        .btn-copy-main.copied { background: var(--success); }
-
-        .btn-action-small { background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 4px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
-        .item-footer { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--gray); margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; }
-        input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
     </style>
 </head>
 <body>
+
 <div class="wrapper">
-    <div class="header">
-        <div>
-            <h3 style="margin:0">2FA Authenticator</h3>
-            <span id="accCounter" class="counter-badge">0 Accounts</span>
+    <div class="glass-card" id="inputSection">
+        <h3 style="margin:0 0 10px 0; color:var(--primary)">Massive 2FA v52.0</h3>
+        <textarea id="inputData" placeholder="Paste:&#10;email1@gmail.com&#10;SECRETKEY123"></textarea>
+        <button class="btn-main" onclick="initApp()">Load & Save Data</button>
+    </div>
+
+    <div id="stickyNav" class="sticky-nav">
+        <input type="text" id="search" class="search-bar" placeholder="🔍 Cari email atau nomor...">
+    </div>
+
+    <div id="appBody" style="display:none">
+        <div style="display: flex; justify-content: space-between; padding: 10px; font-size: 11px; color: var(--gray);">
+            <span>TOTAL: <b id="totalAcc" style="color:var(--primary)">0</b></span>
+            <span>REFRESH: <b id="timer" style="color:var(--success)">30s</b></span>
+            <button onclick="clearStorage()" style="color:var(--danger); background:none; border:none; cursor:pointer; font-size:10px;">RESET ALL</button>
         </div>
-        <button class="theme-toggle" onclick="toggleTheme()">🌙 THEME</button>
+        <div id="list"></div>
     </div>
-
-    <div class="top-action-bar">
-        <div class="top-btns">
-            <button class="btn-top" style="color:var(--success)" onclick="document.getElementById('importFile').click()">Import</button>
-            <button class="btn-top" onclick="exportToTxt()">Export</button>
-            <button class="btn-top" style="color:var(--danger)" onclick="clearAll()">Clear</button>
-            <input type="file" id="importFile" style="display:none" accept=".txt" onchange="importFromTxt(event)">
-        </div>
-        <button id="btnCopySelected" class="btn-top btn-copy-sel" onclick="copySelectedData()">Copy Data</button>
-    </div>
-
-    <input type="text" id="searchInput" placeholder="Search accounts..." oninput="render()">
-
-    <div class="card-form">
-        <input type="text" id="accName" placeholder="Account Name / Email" autocomplete="off">
-        <input type="text" id="accKey" placeholder="Secret Key" autocomplete="off">
-        <textarea id="accBackup" placeholder="Notes / Backup Codes" rows="2"></textarea>
-        <button class="btn-save" onclick="saveAccount()">Save Account</button>
-    </div>
-
-    <div class="selection-bar" id="selectionBar">
-        <label style="cursor:pointer"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"> Select All</label>
-        <button class="btn-top" style="color:var(--danger); border:none" onclick="deleteSelected()">Delete Selected</button>
-    </div>
-
-    <div id="displayList"></div>
 </div>
 
 <script>
-    let accounts = JSON.parse(localStorage.getItem('ux_mail_v8') || '[]');
-    let isLightMode = localStorage.getItem('theme') === 'light';
-    if(isLightMode) document.body.classList.add('light-mode');
+    let db = [];
 
-    function toggleTheme() {
-        document.body.classList.toggle('light-mode');
-        localStorage.setItem('theme', document.body.classList.contains('light-mode') ? 'light' : 'dark');
-    }
+    window.onload = function() {
+        const saved = localStorage.getItem('massive_2fa_v52');
+        if (saved) { db = JSON.parse(saved); showApp(); }
+    };
 
-    function saveAccount() {
-        const nameInput = document.getElementById('accName');
-        const keyInput = document.getElementById('accKey');
-        const backupInput = document.getElementById('accBackup');
-        const name = nameInput.value.trim();
-        const keyRaw = keyInput.value.replace(/\s/g, '').toUpperCase();
-        
-        if (accounts.some(acc => acc.name.toLowerCase() === name.toLowerCase())) {
-            alert("⚠️ Email '" + name + "' sudah ada di daftar.");
-            return;
-        }
-
-        if (name && keyRaw) {
-            accounts.push({ name, key: keyRaw, backup: backupInput.value });
-            localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-            nameInput.value = ''; keyInput.value = ''; backupInput.value = '';
-            render();
-        }
-    }
-
-    function formatKeyWithSpaces(str) { return str ? str.match(/.{1,4}/g).join(' ') : ''; }
-
-    function toggleSelectAll() {
-        document.querySelectorAll('.acc-check').forEach(c => c.checked = document.getElementById('selectAll').checked);
-        updateUI();
-    }
-
-    function updateUI() {
-        const selected = document.querySelectorAll('.acc-check:checked').length;
-        document.getElementById('btnCopySelected').style.display = selected > 0 ? 'inline-block' : 'none';
-    }
-
-    function copySelectedData() {
-        const now = new Date();
-        const dateStr = `${String(now.getDate()).padStart(2, '0')}-${String(now.getMonth() + 1).padStart(2, '0')}-${now.getFullYear()}`;
-        let textToCopy = `Date: ${dateStr}\n\n`;
-        const items = [...document.querySelectorAll('.acc-item')];
-        items.forEach((item, i) => {
-            if (item.querySelector('.acc-check').checked) {
-                textToCopy += `${item.querySelector('.acc-name').innerText}\n${item.querySelector('.secret-val').innerText}\n\n`;
+    function initApp() {
+        const raw = document.getElementById('inputData').value.trim();
+        if(!raw) return alert("Paste data!");
+        const lines = raw.split('\n').map(l => l.trim()).filter(l => l !== "");
+        db = [];
+        for (let i = 0; i < lines.length; i += 2) {
+            if (lines[i] && lines[i+1]) {
+                db.push({ email: lines[i], key: lines[i+1].replace(/\s/g, '').toUpperCase(), done: false });
             }
-        });
-        navigator.clipboard.writeText(textToCopy.trim());
-        const btn = document.getElementById('btnCopySelected');
-        btn.innerText = 'COPIED!';
-        setTimeout(() => btn.innerText = 'Copy Data', 1000);
+        }
+        saveToBrowser(); showApp();
     }
 
-    function exportToTxt() {
-        const blob = new Blob([JSON.stringify(accounts)], { type: "text/plain" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `2FA_Backup_${new Date().toLocaleDateString()}.txt`;
-        a.click();
+    function showApp() {
+        document.getElementById('inputSection').style.display = 'none';
+        document.getElementById('stickyNav').style.display = 'block';
+        document.getElementById('appBody').style.display = 'block';
+        document.getElementById('totalAcc').innerText = db.length;
+        render();
     }
-
-    function importFromTxt(event) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const data = JSON.parse(e.target.result);
-                let addedCount = 0;
-                let skipCount = 0;
-                data.forEach(newAcc => {
-                    const exists = accounts.some(acc => acc.name.toLowerCase() === newAcc.name.toLowerCase());
-                    if (!exists) {
-                        accounts.push(newAcc);
-                        addedCount++;
-                    } else { skipCount++; }
-                });
-                localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-                alert(`Import Berhasil!\n✅ ${addedCount} Akun Baru Ditambahkan\n⚠️ ${skipCount} Akun Dilewati`);
-                location.reload();
-            } catch(err) { alert("Format error"); }
-        };
-        reader.readAsText(event.target.files[0]);
-    }
-
-    function clearAll() { if(confirm("Wipe all data?")) { localStorage.removeItem('ux_mail_v8'); location.reload(); } }
 
     function render() {
-        const div = document.getElementById('displayList');
-        const search = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = [...accounts].reverse().filter(a => a.name.toLowerCase().includes(search));
-        document.getElementById('accCounter').innerText = `${accounts.length} Accounts`;
-        document.getElementById('selectionBar').style.display = filtered.length > 0 ? 'flex' : 'none';
-        div.innerHTML = '';
-        filtered.forEach((acc) => {
-            const idx = accounts.findIndex(a => a === acc);
-            const formatted = formatKeyWithSpaces(acc.key);
-            div.innerHTML += `
-                <div class="acc-item">
-                    <input type="checkbox" class="acc-check" onclick="updateUI()">
-                    <div class="content-area">
-                        <div class="acc-header">
-                            <span class="acc-name">${acc.name}</span>
-                            <button class="btn-action-small" onclick="copyText('${acc.name}', this, 'MAIL')">Mail</button>
-                        </div>
-                        <div class="secret-row">
-                            <code class="secret-val" style="font-size:9px">${formatted}</code>
-                            <button class="btn-action-small" onclick="copyText('${formatted}', this, 'KEY')">Key</button>
-                        </div>
-                        <div class="otp-box">
-                            <div class="otp-left" onclick="copyOTP(${idx}, null)">
-                                <div class="timer-container">
-                                    <svg class="timer-svg"><circle class="timer-circle-bg" cx="12" cy="12" r="11"/><circle class="timer-circle-prog" id="circle-${idx}" cx="12" cy="12" r="11" style="stroke-dasharray: 70;"/></svg>
-                                    <div class="timer-text" id="t-${idx}">30</div>
-                                </div>
-                                <div class="otp-num" id="otp-${idx}">------</div>
-                            </div>
-                            <button class="btn-copy-main" id="btn-otp-${idx}" onclick="copyOTP(${idx}, this)">COPY</button>
-                        </div>
-                        <div class="item-footer">
-                            <div style="display:flex; gap:12px">
-                                <button class="btn-link" onclick="toggleEdit(${idx})">Notes</button>
-                                <button class="btn-link" style="color:var(--danger)" onclick="deleteSingle(${idx})">Delete</button>
-                            </div>
-                        </div>
-                        <div id="ed-${idx}" style="display:none; margin-top:10px">
-                            <textarea oninput="saveBackup(${idx}, this.value)">${acc.backup || ''}</textarea>
-                        </div>
+        const query = document.getElementById('search').value.toLowerCase();
+        const listEl = document.getElementById('list');
+        listEl.innerHTML = '';
+
+        db.forEach((acc, index) => {
+            if (acc.email.toLowerCase().includes(query) || (index+1).toString() === query) {
+                const row = document.createElement('div');
+                row.className = `acc-row ${acc.done ? 'checked' : ''}`;
+                row.innerHTML = `
+                    <div class="acc-no">${index+1}</div>
+                    <div class="acc-info">
+                        <div class="acc-mail">${acc.email}</div>
+                        <div class="acc-key-text">${acc.key}</div>
                     </div>
-                </div>`;
+                    <div class="action-group">
+                        <button class="btn-small" onclick="copyValue('${acc.email}', this, 'MAIL')">MAIL</button>
+                        <button class="btn-small" onclick="copyValue('${acc.key}', this, 'KEY')">KEY</button>
+                        <div class="otp-display" id="otp-${index}">------</div>
+                        <button class="btn-small btn-otp" onclick="copyOTP(${index}, this)">OTP</button>
+                        <button class="btn-small btn-check ${acc.done ? 'is-done' : ''}" onclick="toggleDone(${index})">${acc.done ? '✓' : 'Check'}</button>
+                    </div>
+                `;
+                listEl.appendChild(row);
+            }
         });
+        updateCodes();
+    }
+
+    function saveToBrowser() { localStorage.setItem('massive_2fa_v52', JSON.stringify(db)); }
+    function toggleDone(index) { db[index].done = !db[index].done; saveToBrowser(); render(); }
+    function clearStorage() { if(confirm("Hapus semua?")) { localStorage.removeItem('massive_2fa_v52'); location.reload(); } }
+
+    function copyValue(txt, btn, originalLabel) {
+        const el = document.createElement('textarea'); el.value = txt;
+        document.body.appendChild(el); el.select(); document.execCommand('copy');
+        document.body.removeChild(el);
+        btn.innerText = "OK";
+        setTimeout(() => { btn.innerText = originalLabel; }, 800);
+    }
+
+    function copyOTP(index, btn) {
+        const code = document.getElementById('otp-' + index).innerText;
+        if(code === "------") return;
+        const el = document.createElement('textarea'); el.value = code;
+        document.body.appendChild(el); el.select(); document.execCommand('copy');
+        document.body.removeChild(el);
+        const ori = btn.innerText; btn.innerText = "OK"; btn.style.background = "#fff";
+        setTimeout(() => { btn.innerText = ori; btn.style.background = "var(--primary)"; }, 800);
     }
 
     function updateCodes() {
-        const epoch = Math.floor(Date.now() / 1000);
-        const remain = 30 - (epoch % 30);
-        const offset = (remain / 30) * 70;
-        accounts.forEach((acc, i) => {
-            try {
-                let totp = new OTPAuth.TOTP({ secret: acc.key });
-                const otpEl = document.getElementById('otp-' + i);
-                if(otpEl) otpEl.innerText = totp.generate();
-                const circ = document.getElementById('circle-' + i);
-                if(circ) circ.style.strokeDashoffset = 70 - offset;
-                const txt = document.getElementById('t-' + i);
-                if(txt) txt.innerText = remain;
-            } catch (e) {}
+        if(db.length === 0) return;
+        const remain = 30 - (Math.floor(Date.now() / 1000) % 30);
+        const tEl = document.getElementById('timer'); if(tEl) tEl.innerText = remain + "s";
+        db.forEach((acc, index) => {
+            const el = document.getElementById('otp-' + index);
+            if(el) {
+                try {
+                    let totp = new OTPAuth.TOTP({ secret: acc.key });
+                    el.innerText = totp.generate();
+                } catch(e) { el.innerText = "ERR"; }
+            }
         });
     }
 
-    function copyText(txt, btn, label) {
-        navigator.clipboard.writeText(txt);
-        btn.innerText = 'OK';
-        btn.style.color = 'var(--success)';
-        setTimeout(() => { btn.innerText = label; btn.style.color = 'var(--text)'; }, 800);
-    }
-
-    function copyOTP(idx, btn) {
-        const text = document.getElementById('otp-' + idx).innerText;
-        navigator.clipboard.writeText(text);
-        const targetBtn = btn || document.getElementById('btn-otp-' + idx);
-        const oldText = targetBtn.innerText;
-        
-        targetBtn.innerText = 'DONE';
-        targetBtn.classList.add('copied'); // Tambah warna hijau
-        
-        setTimeout(() => { 
-            targetBtn.innerText = oldText; 
-            targetBtn.classList.remove('copied'); // Balik ke warna biru
-        }, 800);
-    }
-
-    function toggleEdit(i) {
-        const e = document.getElementById('ed-' + i);
-        e.style.display = e.style.display === 'none' ? 'block' : 'none';
-    }
-
-    function saveBackup(i, v) { accounts[i].backup = v; localStorage.setItem('ux_mail_v8', JSON.stringify(accounts)); }
-    function deleteSingle(i) { if(confirm("Hapus?")) { accounts.splice(i,1); localStorage.setItem('ux_mail_v8', JSON.stringify(accounts)); render(); }}
-    function deleteSelected() {
-        const checks = document.querySelectorAll('.acc-check');
-        const items = [...document.querySelectorAll('.acc-item')];
-        const names = items.filter((_, i) => checks[i].checked).map(it => it.querySelector('.acc-name').innerText);
-        accounts = accounts.filter(a => !names.includes(a.name));
-        localStorage.setItem('ux_mail_v8', JSON.stringify(accounts));
-        location.reload();
-    }
-    render();
     setInterval(updateCodes, 1000);
-    updateCodes();
+    document.getElementById('search').oninput = render;
 </script>
+
 </body>
 </html>

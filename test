@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2FA Pro Cloud v28.5</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #000; --card: #121212; --border: #333; --text: #fff; --gray: #888; --danger: #ef4444; --success: #22c55e; --orange: #f59e0b; --purple: #a855f7; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; justify-content: center; padding: 10px; margin: 0; }
+        .wrapper { width: 100%; max-width: 480px; padding-bottom: 100px; }
+        .header { margin-bottom: 15px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 10px; }
+        .stat-box { background: #1a1a1a; padding: 6px; border-radius: 6px; text-align: center; border: 1px solid var(--border); }
+        .stat-box small { display: block; font-size: 8px; color: var(--gray); text-transform: uppercase; }
+        .stat-box b { font-size: 12px; }
+
+        .pw-quick-bar { background: rgba(245, 158, 11, 0.1); border: 1px dashed var(--orange); padding: 8px; border-radius: 8px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+
+        .filter-tabs { display: flex; gap: 6px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: none; }
+        .tab { flex: 0 0 auto; min-width: 75px; padding: 10px 5px; border-radius: 8px; border: 1px solid var(--border); background: var(--card); color: var(--gray); cursor: pointer; font-size: 10px; font-weight: bold; text-align: center; }
+        .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        .selection-bar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: #1a1a1a; padding: 12px; border-top: 2px solid var(--primary); z-index: 1000; display: none; }
+        .btn-bulk { border: none; font-size: 10px; font-weight: bold; cursor: pointer; text-transform: uppercase; border-radius: 6px; padding: 10px 5px; }
+        .grid-bulk { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; width: 100%; }
+
+        .card-form { background: var(--card); padding: 15px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 12px; margin-bottom: 10px; border: 1px solid var(--border); border-radius: 8px; background: #000; color: #fff; box-sizing: border-box; outline: none; font-family: inherit; }
+        
+        /* DROP ZONE STYLE (DRAG & DROP) */
+        .drop-zone { width: 100%; padding: 25px 10px; background: rgba(37, 99, 235, 0.05); border: 2px dashed var(--primary); border-radius: 10px; text-align: center; font-weight: bold; font-size: 12px; color: #fff; cursor: pointer; box-sizing: border-box; margin-bottom: 15px; transition: 0.2s; }
+        .drop-zone.drag-over { background: rgba(37, 99, 235, 0.2); border-color: var(--success); color: var(--success); }
+        #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-bottom: 10px; display: none; border: 1px solid var(--primary) !important; }
+
+        .btn-save { width: 100%; padding: 14px; background: #fff; color: #000; border: none; border-radius: 8px; cursor: pointer; font-weight: 800; text-transform: uppercase; }
+
+        .acc-item { background: var(--card); padding: 12px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px; display: flex; gap: 10px; }
+        .acc-check { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+        .email-display { font-weight: bold; font-size: 14px; display: block; }
+        .key-display { font-family: monospace; font-size: 11px; color: var(--gray); display: block; margin-top: 2px; }
+        
+        .status-badge { font-size: 8px; padding: 4px 8px; border-radius: 5px; cursor: pointer; font-weight: 900; border: none; }
+        .status-uploaded { background: var(--success); color: #000; }
+        .status-pending { background: var(--orange); color: #000; }
+        .status-sold { background: var(--purple); color: #fff; }
+        .status-disable { background: var(--danger); color: #fff; }
+
+        .otp-box { display: flex; align-items: center; justify-content: space-between; background: rgba(37,99,235,0.05); padding: 10px; border-radius: 8px; margin: 10px 0; border: 1px solid var(--border); }
+        .otp-num { font-family: monospace; font-size: 26px; font-weight: 800; color: var(--primary); letter-spacing: 2px; }
+        .btn-action-small { background: #1a1a1a; border: 1px solid var(--border); color: #fff; padding: 5px 10px; border-radius: 6px; font-size: 10px; cursor: pointer; font-weight: bold; }
+        #main-app, #login-screen { display: none; }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <div id="login-screen" style="text-align: center; margin-top: 100px;">
+        <h2>2FA AUTH CLOUD</h2>
+        <button onclick="login()" style="padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; background: white; color: black;">SIGN IN WITH GOOGLE</button>
+    </div>
+
+    <div id="main-app">
+        <div class="header">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+                <h3 style="margin:0">Inventory Global</h3>
+                <button onclick="logout()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:10px">LOGOUT</button>
+            </div>
+            <div class="pw-quick-bar" onclick="copyTextQuick('sayamanusia', this)">
+                <span style="font-size:11px; font-weight:bold; color:var(--orange)">PW: sayamanusia</span>
+                <span id="pwLabel" style="font-size:9px; color:var(--gray)">KLIK UNTUK SALIN</span>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-box"><small>Total</small><b id="countTotal">0</b></div>
+                <div class="stat-box"><small style="color:var(--orange)">Stok</small><b id="countBelum">0</b></div>
+                <div class="stat-box"><small style="color:var(--success)">G2G</small><b id="countG2G">0</b></div>
+                <div class="stat-box"><small style="color:var(--purple)">Sold</small><b id="countSold">0</b></div>
+                <div class="stat-box" style="grid-column: span 4; margin-top: 5px;"><small style="color:var(--danger)">Mati / Disable</small><b id="countDisable">0</b></div>
+            </div>
+        </div>
+
+        <div class="card-form">
+            <!-- DRAG & DROP ZONE -->
+            <div id="drop-zone" class="drop-zone">🚀 DRAG & DROP GAMBAR QR KE SINI <br><span style="font-size:10px; font-weight:normal; color:var(--gray)">(Bisa seret langsung dari tab browser lain / klik untuk upload)</span></div>
+            <input type="file" id="qr-file-input" accept="image/*" style="display:none" onchange="processFile(this.files[0])">
+            <div id="reader"></div>
+
+            <input type="text" id="accName" placeholder="Email Akun" autocomplete="off">
+            <input type="text" id="accKey" placeholder="Secret Key" oninput="this.value = this.value.replace(/\s/g, '').toUpperCase()" autocomplete="off">
+            <button class="btn-save" onclick="saveAccount()">Save Account</button>
+        </div>
+
+        <div class="filter-tabs">
+            <div class="tab active" onclick="setFilter('ALL', this)">SEMUA</div>
+            <div class="tab" onclick="setFilter('STOK', this)">STOK</div>
+            <div class="tab" onclick="setFilter('G2G', this)">G2G</div>
+            <div class="tab" onclick="setFilter('SOLD', this)">SOLD</div>
+            <div class="tab" onclick="setFilter('DISABLE', this)" style="border-color: var(--danger); color: var(--danger);">DISABLE</div>
+        </div>
+
+        <textarea id="searchInput" style="height: 60px; resize: none;" placeholder="Cari banyak email (paste list ke bawah)..." oninput="render()"></textarea>
+        <div id="displayList"></div>
+    </div>
+
+    <!-- SELECTION BAR -->
+    <div class="selection-bar" id="selectionBar">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+            <label style="font-weight:bold; font-size:12px"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"> Select All</label>
+            <span id="selCount" style="font-size:11px; color:var(--primary)">0 selected</span>
+        </div>
+        <div class="grid-bulk">
+            <button class="btn-bulk" style="background:var(--primary); color:white" onclick="bulkCopy()">Copy</button>
+            <button class="btn-bulk" style="background:var(--orange); color:black" onclick="bulkUpdateStatus('STOK')">Stok</button>
+            <button class="btn-bulk" style="background:var(--success); color:black" onclick="bulkUpdateStatus('G2G')">G2G</button>
+            <button class="btn-bulk" style="background:var(--purple); color:white" onclick="bulkUpdateStatus('SOLD')">Sold</button>
+            <button class="btn-bulk" style="background:var(--danger); color:white; grid-column: span 4; margin-top: 5px;" onclick="bulkUpdateStatus('DISABLE')">Pindahkan ke Disable (Mati)</button>
+            <button id="btnBulkDelete" class="btn-bulk" style="background:var(--gray); color:white; grid-column: span 4; margin-top: 5px; display: none;" onclick="bulkDelete()">Hapus Permanen</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyC3mIXsaFlLbpKm5qufpP6Trr9S1DXixKk",
+        authDomain: "fanews-b8b0f.firebaseapp.com",
+        databaseURL: "https://fanews-b8b0f-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "fanews-b8b0f",
+        storageBucket: "fanews-b8b0f.firebasestorage.app",
+        messagingSenderId: "514202109743",
+        appId: "1:514202109743:web:ef7f55adfaed815bbc43da"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    let userUid = null, accounts = [], currentFilter = 'ALL';
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            userUid = user.uid;
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('main-app').style.display = 'block';
+            loadData();
+            initDragAndDrop();
+        } else {
+            document.getElementById('login-screen').style.display = 'block';
+            document.getElementById('main-app').style.display = 'none';
+        }
+    });
+
+    function login() { auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+    function logout() { if(confirm("Logout?")) auth.signOut(); }
+
+    // LOGIKA DRAG & DROP & CLICK TO UPLOAD
+    function initDragAndDrop() {
+        const zone = document.getElementById('drop-zone');
+        
+        // Klik kotak untuk upload manual dari file manager laptop
+        zone.addEventListener('click', () => document.getElementById('qr-file-input').click());
+
+        // Efek visual saat file diseret di atas kotak
+        window.addEventListener('dragover', (e) => e.preventDefault());
+        zone.addEventListener('dragenter', () => zone.classList.add('drag-over'));
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+
+        // Saat file dilepas (Dropped)
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            
+            // Cek apakah yang di-drag berupa file lokal atau element gambar dari web sebelah
+            if (e.dataTransfer.files.length > 0) {
+                processFile(e.dataTransfer.files[0]);
+            } else {
+                // Jika drag langsung gambar dari browser sebelah (URL Image / Base64)
+                const htmlData = e.dataTransfer.getData('text/html');
+                if (htmlData) {
+                    const doc = new DOMParser().parseFromString(htmlData, 'text/html');
+                    const img = doc.querySelector('img');
+                    if (img && img.src) scanFromUrl(img.src);
+                }
+            }
+        });
+    }
+
+    function processFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const scanner = new Html5Qrcode("reader");
+        scanner.scanFile(file, true)
+            .then(text => parseQrCode(text))
+            .catch(() => alert("Gagal mendeteksi QR Code dari file ini!"));
+    }
+
+    function scanFromUrl(url) {
+        // Mengubah image URL web sebelah menjadi blob agar bisa di-scan oleh library
+        const scanner = new Html5Qrcode("reader");
+        fetch(url)
+            .then(res => res.blob())
+            .then(blob => scanner.scanFile(blob, true))
+            .then(text => parseQrCode(text))
+            .catch(() => alert("Gagal memproses gambar dari browser sebelah. Coba save gambarnya lalu drag filenya ke sini."));
+    }
+
+    function parseQrCode(url) {
+        try {
+            const uri = new URL(url);
+            const secret = uri.searchParams.get("secret");
+            let label = decodeURIComponent(uri.pathname.split('/').pop());
+            let email = label.includes(':') ? label.split(':').pop().trim() : label.trim();
+            if (secret && email) {
+                document.getElementById('accName').value = email;
+                document.getElementById('accKey').value = secret.toUpperCase();
+                saveAccount(); // Langsung auto-save
+            }
+        } catch (e) {
+            alert("QR Code terdeteksi, tapi format data di dalamnya bukan 2FA!");
+        }
+    }
+
+    // FIREBASE LOGIC (Tetap utuh seperti v25.6)
+    function loadData() {
+        db.ref('users/' + userUid).on('value', snapshot => {
+            accounts = [];
+            snapshot.forEach(child => { accounts.push({ id: child.key, ...child.val() }); });
+            document.getElementById('countTotal').innerText = accounts.length;
+            document.getElementById('countBelum').innerText = accounts.filter(a => a.status === 'STOK').length;
+            document.getElementById('countG2G').innerText = accounts.filter(a => a.status === 'G2G').length;
+            document.getElementById('countSold').innerText = accounts.filter(a => a.status === 'SOLD').length;
+            document.getElementById('countDisable').innerText = accounts.filter(a => a.status === 'DISABLE').length;
+            render();
+        });
+    }
+
+    function saveAccount() {
+        const nIn = document.getElementById('accName'), kIn = document.getElementById('accKey');
+        const name = nIn.value.trim().toLowerCase(), key = kIn.value.replace(/\s/g, '').toUpperCase();
+        if (!name || !key) return;
+        if (accounts.some(acc => acc.name.toLowerCase() === name)) { alert("Gagal! Email sudah ada."); return; }
+        const date = new Date().toLocaleString('id-ID', { day:'2-digit', month:'short' });
+        db.ref('users/' + userUid).push({ name, key, status: 'STOK', date }).then(() => {
+            nIn.value = ''; kIn.value = '';
+        });
+    }
+
+    function render() {
+        const div = document.getElementById('displayList');
+        const searchRaw = document.getElementById('searchInput').value.trim().toLowerCase();
+        const searchTerms = searchRaw.split(/[\n\s,]+/).filter(t => t !== "");
+        let filtered = [...accounts].reverse();
+        if (currentFilter !== 'ALL') filtered = filtered.filter(a => a.status === currentFilter);
+        if (searchTerms.length > 0) {
+            filtered = filtered.filter(acc => searchTerms.some(term => acc.name.toLowerCase().includes(term)));
+        }
+        
+        div.innerHTML = '';
+        filtered.forEach(acc => {
+            let sClass = acc.status === 'G2G' ? 'status-uploaded' : (acc.status === 'SOLD' ? 'status-sold' : (acc.status === 'DISABLE' ? 'status-disable' : 'status-pending'));
+            div.innerHTML += `
+                <div class="acc-item" data-id="${acc.id}">
+                    <input type="checkbox" class="acc-check" onclick="updateSelCount()">
+                    <div style="flex-grow:1">
+                        <span style="font-size:8px; color:var(--gray)">${acc.date || ''}</span>
+                        <div style="display:flex; justify-content:space-between">
+                            <div><span class="email-display">${acc.name}</span><span class="key-display">${acc.key.match(/.{1,4}/g).join(' ')}</span></div>
+                            <button class="status-badge ${sClass}" onclick="cycleStatus('${acc.id}', '${acc.status}')">${acc.status || 'STOK'}</button>
+                        </div>
+                        <div class="otp-box">
+                            <div style="display:flex; align-items:center; gap:8px"><span style="font-size:8px; color:var(--gray)" id="t-${acc.id}">30s</span><div class="otp-num" id="otp-${acc.id}">------</div></div>
+                            <button class="btn-action-small" id="btn-${acc.id}" onclick="copyOTP('${acc.id}')">COPY OTP</button>
+                        </div>
+                        <div style="display:flex; gap:10px">
+                            <button class="btn-action-small" onclick="copyText('${acc.name}', this, 'MAIL')">MAIL</button>
+                            <button class="btn-action-small" onclick="copyText('${acc.key}', this, 'KEY')">KEY</button>
+                            <button onclick="if(confirm('Hapus?')) db.ref('users/${userUid}/${acc.id}').remove()" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:10px; margin-left:auto">Hapus</button>
+                        </div>
+                    </div>
+                </div>`;
+        });
+        updateSelCount();
+    }
+
+    function cycleStatus(id, current) {
+        let flow = ['STOK','G2G','SOLD','DISABLE'];
+        let next = flow[(flow.indexOf(current) + 1) % flow.length];
+        db.ref(`users/${userUid}/${id}`).update({ status: next });
+    }
+
+    function bulkUpdateStatus(s) {
+        document.querySelectorAll('.acc-item').forEach(item => {
+            if (item.querySelector('.acc-check').checked) db.ref(`users/${userUid}/${item.getAttribute('data-id')}`).update({ status: s });
+        });
+        document.getElementById('selectAll').checked = false;
+        updateSelCount();
+    }
+
+    function bulkDelete() {
+        if (confirm("Hapus terpilih?")) {
+            document.querySelectorAll('.acc-item').forEach(item => {
+                if (item.querySelector('.acc-check').checked) db.ref(`users/${userUid}/${item.getAttribute('data-id')}`).remove();
+            });
+        }
+    }
+
+    function bulkCopy() {
+        let text = "";
+        document.querySelectorAll('.acc-item').forEach(item => {
+            if (item.querySelector('.acc-check').checked) {
+                const acc = accounts.find(a => a.id === item.getAttribute('data-id'));
+                text += `${acc.name}\n${acc.key}\n\n`;
+            }
+        });
+        navigator.clipboard.writeText(text.trim());
+        alert("Copied!");
+    }
+
+    function toggleSelectAll() {
+        const checked = document.getElementById('selectAll').checked;
+        document.querySelectorAll('.acc-check').forEach(c => c.checked = checked);
+        updateSelCount();
+    }
+
+    function updateSelCount() {
+        const count = document.querySelectorAll('.acc-check:checked').length;
+        document.getElementById('selCount').innerText = count + " selected";
+        document.getElementById('selectionBar').style.display = count > 0 ? 'block' : 'none';
+        const btnDelete = document.getElementById('btnBulkDelete');
+        btnDelete.style.display = (count > 0 && (currentFilter === 'SOLD' || currentFilter === 'DISABLE')) ? 'block' : 'none';
+    }
+
+    function copyTextQuick(txt, el) { navigator.clipboard.writeText(txt); document.getElementById('pwLabel').innerText = "COPIED!"; setTimeout(() => document.getElementById('pwLabel').innerText = "KLIK UNTUK SALIN", 1000); }
+    function copyText(txt, el, label) { navigator.clipboard.writeText(txt); el.innerText = "OK"; setTimeout(() => el.innerText = label, 800); }
+    function copyOTP(id) {
+        const code = document.getElementById('otp-' + id).innerText;
+        navigator.clipboard.writeText(code);
+        const btn = document.getElementById('btn-' + id);
+        btn.innerText = "DONE"; btn.style.background = "var(--success)";
+        setTimeout(() => { btn.innerText = "COPY OTP"; btn.style.background = "var(--primary)"; }, 1000);
+    }
+
+    function setFilter(f, el) { currentFilter = f; document.querySelectorAll('.tab').forEach(t => t.classList.remove('active')); el.classList.add('active'); render(); }
+
+    setInterval(() => {
+        const remain = 30 - (Math.floor(Date.now() / 1000) % 30);
+        accounts.forEach(acc => {
+            try {
+                let totp = new OTPAuth.TOTP({ secret: acc.key });
+                const el = document.getElementById('otp-' + acc.id);
+                if(el) el.innerText = totp.generate();
+                const tEl = document.getElementById('t-' + acc.id);
+                if(tEl) tEl.innerText = remain + "s";
+            } catch (e) {}
+        });
+    }, 1000);
+</script>
+</body>
+</html>

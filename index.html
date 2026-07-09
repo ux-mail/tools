@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Massive 2FA v52.0 (Sheets Master)</title>
+    <title>Massive 2FA v52.0 (Clean Mail Mode)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
     <style>
         :root { --primary: #06b6d4; --bg: #0a0a0a; --card: #161616; --border: #262626; --text: #e5e5e5; --gray: #737373; --success: #10b981; --danger: #ef4444; }
@@ -45,7 +45,7 @@
 <div class="wrapper">
     <div class="glass-card" id="inputSection">
         <h3 style="margin:0 0 10px 0; color:var(--primary)">Massive 2FA v52.0</h3>
-        <textarea id="inputData" placeholder="Blok & copy Kolom Email, Key, dan Sandi langsung dari Sheet, lalu paste di sini..."></textarea>
+        <textarea id="inputData" placeholder="Paste data kolom Sheet di sini..."></textarea>
         <button class="btn-main" onclick="initApp()">Load & Save Data</button>
     </div>
 
@@ -81,23 +81,30 @@
         lines.forEach(line => {
             if (line.trim() === "") return;
             
-            // Pemisah Tab (\t) otomatis mendeteksi struktur kolom Google Sheets / Excel
+            // Pisah data berdasarkan TAB (kolom Sheet)
             let parts = line.split('\t');
 
-            if (parts.length >= 2) {
-                const email = parts[0].trim();
-                const key = parts[1].trim().replace(/\s/g, '').toUpperCase();
-                // Ambil kolom ke-3 jika ada, jika kosong berikan teks default kosong
-                const password = parts[2] ? parts[2].trim() : ''; 
-                
-                if (email && key) {
-                    db.push({ email: email, key: key, password: password, done: false });
-                }
+            let email = parts[0] ? parts[0].trim() : "";
+            let key = parts[1] ? parts[1].trim() : "";
+            let password = parts[2] ? parts[2].trim() : "";
+
+            // AUTO-CORRECTION: Jika kolom email mengandung format "mail / key", potong dan ambil emailnya saja
+            if (email.includes('/')) {
+                email = email.split('/')[0].trim();
+            }
+
+            // Bersihkan format Key dari spasi dan ubah ke kapital
+            if (key) {
+                key = key.replace(/\s/g, '').toUpperCase();
+            }
+            
+            if (email && key) {
+                db.push({ email: email, key: key, password: password, done: false });
             }
         });
 
         if (db.length === 0) {
-            return alert("Format data tidak sesuai. Pastikan Anda menyalin kolom dari spreadsheet langsung.");
+            return alert("Format data tidak sesuai. Pastikan minimal ada kolom Email dan Key.");
         }
 
         saveToBrowser(); showApp();

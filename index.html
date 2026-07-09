@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Massive 2FA v52.0 (Clean Mail Mode)</title>
+    <title>Massive 2FA v52.0 (Grouped Password Mode)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
     <style>
         :root { --primary: #06b6d4; --bg: #0a0a0a; --card: #161616; --border: #262626; --text: #e5e5e5; --gray: #737373; --success: #10b981; --danger: #ef4444; }
@@ -16,6 +16,9 @@
 
         .sticky-nav { position: sticky; top: 0; background: rgba(10,10,10,0.9); backdrop-filter: blur(10px); padding: 10px 0; z-index: 100; border-bottom: 1px solid var(--border); display: none; }
         .search-bar { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: #fff; outline: none; box-sizing: border-box; }
+
+        /* GROUP STYLING */
+        .pass-group-header { font-size: 11px; color: #fff; background: #1e293b; padding: 6px 12px; border-radius: 8px; margin: 15px 0 6px 0; font-weight: bold; letter-spacing: 0.5px; display: inline-block; border-left: 3px solid #3b82f6; }
 
         /* LIST ROW */
         .acc-row { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; display: grid; grid-template-columns: 25px 1fr auto; gap: 12px; align-items: center; transition: 0.2s; }
@@ -81,19 +84,17 @@
         lines.forEach(line => {
             if (line.trim() === "") return;
             
-            // Pisah data berdasarkan TAB (kolom Sheet)
             let parts = line.split('\t');
 
             let email = parts[0] ? parts[0].trim() : "";
             let key = parts[1] ? parts[1].trim() : "";
             let password = parts[2] ? parts[2].trim() : "";
 
-            // AUTO-CORRECTION: Jika kolom email mengandung format "mail / key", potong dan ambil emailnya saja
+            // Auto-correction jika kolom pertama mengandung tanda '/'
             if (email.includes('/')) {
                 email = email.split('/')[0].trim();
             }
 
-            // Bersihkan format Key dari spasi dan ubah ke kapital
             if (key) {
                 key = key.replace(/\s/g, '').toUpperCase();
             }
@@ -104,7 +105,7 @@
         });
 
         if (db.length === 0) {
-            return alert("Format data tidak sesuai. Pastikan minimal ada kolom Email dan Key.");
+            return alert("Format data tidak sesuai.");
         }
 
         saveToBrowser(); showApp();
@@ -123,12 +124,33 @@
         const listEl = document.getElementById('list');
         listEl.innerHTML = '';
 
-        db.forEach((acc, index) => {
-            if (acc.email.toLowerCase().includes(query) || (index+1).toString() === query) {
+        // 1. Filter data berdasarkan kolom pencarian
+        let filteredDb = db.map((acc, index) => ({ ...acc, originalIndex: index }))
+            .filter(acc => acc.email.toLowerCase().includes(query) || (acc.originalIndex + 1).toString() === query);
+
+        // 2. Kelompokkan data hasil filter berdasarkan password
+        let groups = {};
+        filteredDb.forEach(acc => {
+            let passKey = acc.password || "TANPA SANDI";
+            if (!groups[passKey]) {
+                groups[passKey] = [];
+            }
+            groups[passKey].push(acc);
+        });
+
+        // 3. Tampilkan list ke layar dengan grouping pembatas sandi
+        for (let pass in groups) {
+            // Buat header penanda kelompok password
+            const header = document.createElement('div');
+            header.className = 'pass-group-header';
+            header.innerText = `SANDI: ${pass} (${groups[pass].length} Akun)`;
+            listEl.appendChild(header);
+
+            groups[pass].forEach(acc => {
                 const row = document.createElement('div');
                 row.className = `acc-row ${acc.done ? 'checked' : ''}`;
                 row.innerHTML = `
-                    <div class="acc-no">${index+1}</div>
+                    <div class="acc-no">${acc.originalIndex + 1}</div>
                     <div class="acc-info">
                         <div class="acc-mail">${acc.email}</div>
                         <div class="acc-sub-info">KEY: ${acc.key} ${acc.password ? '• PASS: ' + acc.password : ''}</div>
@@ -137,14 +159,14 @@
                         <button class="btn-small" onclick="copyValue('${acc.email}', this, 'MAIL')">MAIL</button>
                         <button class="btn-small" onclick="copyValue('${acc.key}', this, 'KEY')">KEY</button>
                         ${acc.password ? `<button class="btn-small" style="background:#3b82f6;" onclick="copyValue('${acc.password}', this, 'PASS')">PASS</button>` : ''}
-                        <div class="otp-display" id="otp-${index}">------</div>
-                        <button class="btn-small btn-otp" onclick="copyOTP(${index}, this)">OTP</button>
-                        <button class="btn-small btn-check ${acc.done ? 'is-done' : ''}" onclick="toggleDone(${index})">${acc.done ? '✓' : 'Check'}</button>
+                        <div class="otp-display" id="otp-${acc.originalIndex}">------</div>
+                        <button class="btn-small btn-otp" onclick="copyOTP(${acc.originalIndex}, this)">OTP</button>
+                        <button class="btn-small btn-check ${acc.done ? 'is-done' : ''}" onclick="toggleDone(${acc.originalIndex})">${acc.done ? '✓' : 'Check'}</button>
                     </div>
                 `;
                 listEl.appendChild(row);
-            }
-        });
+            });
+        }
         updateCodes();
     }
 

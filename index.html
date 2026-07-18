@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Massive 2FA v52.0 (Grouped Password Mode)</title>
+    <title>Massive 2FA v53.1 (Google Sheet Format Export)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.2/otpauth.umd.min.js"></script>
     <style>
         :root { --primary: #06b6d4; --bg: #0a0a0a; --card: #161616; --border: #262626; --text: #e5e5e5; --gray: #737373; --success: #10b981; --danger: #ef4444; }
@@ -16,6 +16,9 @@
 
         .sticky-nav { position: sticky; top: 0; background: rgba(10,10,10,0.9); backdrop-filter: blur(10px); padding: 10px 0; z-index: 100; border-bottom: 1px solid var(--border); display: none; }
         .search-bar { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: #fff; outline: none; box-sizing: border-box; }
+
+        .filter-options { display: flex; gap: 15px; margin-top: 8px; font-size: 11px; color: var(--gray); align-items: center; }
+        .filter-options input { cursor: pointer; }
 
         /* GROUP STYLING */
         .pass-group-header { font-size: 11px; color: #fff; background: #1e293b; padding: 6px 12px; border-radius: 8px; margin: 15px 0 6px 0; font-weight: bold; letter-spacing: 0.5px; display: inline-block; border-left: 3px solid #3b82f6; }
@@ -38,6 +41,8 @@
         .btn-del { background: var(--danger); color: #fff; border-color: var(--danger); }
 
         @media (max-width: 600px) {
+            .acc-row { grid-template-columns: 20px 1fr; gap: 8px; }
+            .action-group { grid-column: 1 / span 2; justify-content: flex-start; margin-top: 5px; width: 100%; justify-content: space-between; }
             .acc-mail { font-size: 12px; }
             .otp-display { font-size: 16px; min-width: 60px; }
             .btn-small { padding: 7px 4px; font-size: 8px; min-width: 38px; }
@@ -48,20 +53,26 @@
 
 <div class="wrapper">
     <div class="glass-card" id="inputSection">
-        <h3 style="margin:0 0 10px 0; color:var(--primary)">Massive 2FA v52.0</h3>
-        <textarea id="inputData" placeholder="Paste data kolom Sheet di sini..."></textarea>
+        <h3 style="margin:0 0 10px 0; color:var(--primary)">Massive 2FA v53.1</h3>
+        <textarea id="inputData" placeholder="Paste data kolom Sheet di sini...&#10;Format langsung copas dari tabel Gmail Anda"></textarea>
         <button class="btn-main" onclick="initApp()">Load & Save Data</button>
     </div>
 
     <div id="stickyNav" class="sticky-nav">
         <input type="text" id="search" class="search-bar" placeholder="🔍 Cari email atau nomor...">
+        <div class="filter-options">
+            <label><input type="checkbox" id="hideDoneCheck" onchange="render()"> Sembunyikan Akun Selesai (✓)</label>
+        </div>
     </div>
 
     <div id="appBody" style="display:none">
-        <div style="display: flex; justify-content: space-between; padding: 10px; font-size: 11px; color: var(--gray);">
-            <span>TOTAL: <b id="totalAcc" style="color:var(--primary)">0</b></span>
-            <span>REFRESH: <b id="timer" style="color:var(--success)">30s</b></span>
-            <button onclick="clearStorage()" style="color:var(--danger); background:none; border:none; cursor:pointer; font-size:10px;">RESET ALL</button>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; font-size: 11px; color: var(--gray);">
+            <div>TOTAL: <b id="totalAcc" style="color:var(--primary)">0</b></div>
+            <div>REFRESH: <b id="timer" style="color:var(--success)">30s</b></div>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="exportToSheet(this)" style="color:var(--success); background:none; border:none; cursor:pointer; font-size:10px; font-weight:bold;">EXPORT TO SHEET</button>
+                <button onclick="clearStorage()" style="color:var(--danger); background:none; border:none; cursor:pointer; font-size:10px; font-weight:bold;">RESET ALL</button>
+            </div>
         </div>
         <div id="list"></div>
     </div>
@@ -86,10 +97,14 @@
             if (line.trim() === "") return;
             
             let parts = line.split('\t');
-
             let email = parts[0] ? parts[0].trim() : "";
             let key = parts[1] ? parts[1].trim() : "";
             let password = parts[2] ? parts[2].trim() : "";
+
+            // Lewati baris jika terikut menyalin baris judul besar atau subheader
+            if (email === "DATA GMAIL" || email.toLowerCase() === "mail" || key.toLowerCase() === "2fa key") {
+                return;
+            }
 
             if (email.includes('/')) {
                 email = email.split('/')[0].trim();
@@ -105,7 +120,7 @@
         });
 
         if (db.length === 0) {
-            return alert("Format data tidak sesuai.");
+            return alert("Format data tidak sesuai atau hanya berisi header.");
         }
 
         saveToBrowser(); showApp();
@@ -121,11 +136,16 @@
 
     function render() {
         const query = document.getElementById('search').value.toLowerCase();
+        const hideDone = document.getElementById('hideDoneCheck').checked;
         const listEl = document.getElementById('list');
         listEl.innerHTML = '';
 
         let filteredDb = db.map((acc, index) => ({ ...acc, originalIndex: index }))
-            .filter(acc => acc.email.toLowerCase().includes(query) || (acc.originalIndex + 1).toString() === query);
+            .filter(acc => {
+                const matchQuery = acc.email.toLowerCase().includes(query) || (acc.originalIndex + 1).toString() === query;
+                const matchHide = hideDone ? !acc.done : true;
+                return matchQuery && matchHide;
+            });
 
         let groups = {};
         filteredDb.forEach(acc => {
@@ -179,8 +199,33 @@
             render();
         }
     }
+
+    // Fungsi eksport dengan format persis seperti Google Sheets Anda
+    function exportToSheet(btn) {
+        if(db.length === 0) return alert("Tidak ada data untuk diekspor.");
+        
+        // Baris 1: Judul utama di kolom A (atau kolom gabungan)
+        let outputLines = ["DATA GMAIL\t\t"];
+        
+        // Baris 2: Sub-header nama kolom
+        outputLines.push("MAIL\t2FA KEY\tPASSWORD");
+        
+        // Baris 3 dst: Isi datanya
+        db.forEach(acc => {
+            outputLines.push(`${acc.email}\t${acc.key}\t${acc.password}`);
+        });
+        
+        let txt = outputLines.join('\n');
+        
+        navigator.clipboard.writeText(txt).then(() => {
+            const ori = btn.innerText; btn.innerText = "COPIED FORMAT SHEET!";
+            setTimeout(() => { btn.innerText = ori; }, 1500);
+        }).catch(() => {
+            alert("Gagal menyalin otomatis.");
+        });
+    }
     
-    function clearStorage() { if(confirm("Hapus semua?")) { localStorage.removeItem('massive_2fa_v52'); location.reload(); } }
+    function clearStorage() { if(confirm("Hapus semua data aplikasi?")) { localStorage.removeItem('massive_2fa_v52'); location.reload(); } }
 
     function copyValue(txt, btn, originalLabel) {
         navigator.clipboard.writeText(txt).then(() => {

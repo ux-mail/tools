@@ -35,6 +35,7 @@
         .btn-small { padding: 8px 6px; border-radius: 6px; border: 1px solid #333; background: #262626; color: #fff; font-size: 9px; font-weight: 800; cursor: pointer; text-transform: uppercase; min-width: 42px; }
         .btn-otp { background: var(--primary); color: #000; border: none; }
         .btn-check.is-done { background: var(--success); color: #000; border-color: var(--success); }
+        .btn-del { background: var(--danger); color: #fff; border-color: var(--danger); }
 
         @media (max-width: 600px) {
             .acc-mail { font-size: 12px; }
@@ -90,7 +91,6 @@
             let key = parts[1] ? parts[1].trim() : "";
             let password = parts[2] ? parts[2].trim() : "";
 
-            // Auto-correction jika kolom pertama mengandung tanda '/'
             if (email.includes('/')) {
                 email = email.split('/')[0].trim();
             }
@@ -124,11 +124,9 @@
         const listEl = document.getElementById('list');
         listEl.innerHTML = '';
 
-        // 1. Filter data berdasarkan kolom pencarian
         let filteredDb = db.map((acc, index) => ({ ...acc, originalIndex: index }))
             .filter(acc => acc.email.toLowerCase().includes(query) || (acc.originalIndex + 1).toString() === query);
 
-        // 2. Kelompokkan data hasil filter berdasarkan password
         let groups = {};
         filteredDb.forEach(acc => {
             let passKey = acc.password || "TANPA SANDI";
@@ -138,9 +136,7 @@
             groups[passKey].push(acc);
         });
 
-        // 3. Tampilkan list ke layar dengan grouping pembatas sandi
         for (let pass in groups) {
-            // Buat header penanda kelompok password
             const header = document.createElement('div');
             header.className = 'pass-group-header';
             header.innerText = `SANDI: ${pass} (${groups[pass].length} Akun)`;
@@ -162,6 +158,7 @@
                         <div class="otp-display" id="otp-${acc.originalIndex}">------</div>
                         <button class="btn-small btn-otp" onclick="copyOTP(${acc.originalIndex}, this)">OTP</button>
                         <button class="btn-small btn-check ${acc.done ? 'is-done' : ''}" onclick="toggleDone(${acc.originalIndex})">${acc.done ? '✓' : 'Check'}</button>
+                        <button class="btn-small btn-del" onclick="deleteAccount(${acc.originalIndex})">DEL</button>
                     </div>
                 `;
                 listEl.appendChild(row);
@@ -171,7 +168,18 @@
     }
 
     function saveToBrowser() { localStorage.setItem('massive_2fa_v52', JSON.stringify(db)); }
+    
     function toggleDone(index) { db[index].done = !db[index].done; saveToBrowser(); render(); }
+    
+    function deleteAccount(index) {
+        if(confirm(`Hapus akun: ${db[index].email}?`)) {
+            db.splice(index, 1);
+            saveToBrowser();
+            document.getElementById('totalAcc').innerText = db.length;
+            render();
+        }
+    }
+    
     function clearStorage() { if(confirm("Hapus semua?")) { localStorage.removeItem('massive_2fa_v52'); location.reload(); } }
 
     function copyValue(txt, btn, originalLabel) {
